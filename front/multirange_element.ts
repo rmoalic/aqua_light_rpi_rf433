@@ -1,4 +1,10 @@
 
+type RGB = `rgb(${number}, ${number}, ${number})`;
+type RGBA = `rgba(${number}, ${number}, ${number}, ${number})`;
+type HEX = `#${string}`;
+
+type Color = RGB | RGBA | HEX;
+
 class Multirange_element extends HTMLElement {
     private isGrabbed: boolean;
     private grabbedOffset: number;
@@ -28,38 +34,47 @@ class Multirange_element extends HTMLElement {
                 width: 15px;
                 height: 25px;
                 background: red;
-                border-radius: 5px;
+                border-radius: 0 0 5px 5px;
                 z-index: 1;
+                margin: 0;
+                padding 0;
             }
             trail {
                 display: inline-block;
                 position: absolute;
                 height: 20px;
                 background: green;
+                z-index: 0;
+            }
+            trail:last-child {
+                border-radius: 5px;
             }
         `;
         shadow.appendChild(style);
         const bar = document.createElement("div");
         bar.classList.add("bar");
         shadow.appendChild(bar);
-        this.addHandle();
-        this.addHandle();
+        this.addHandle("#ff22ff");
+        this.addHandle("#00ffff");
     }
 
-    addHandle() {
+    addHandle(color: Color) {
         let handle = document.createElement("handle");
         handle.onmousedown = down;
         handle.ontouchstart = down;
         
         let trail = document.createElement("trail");
 
+        handle.style.background = color;
+        trail.style.background = color;
+
         let parent = this;
-        handle.style.left = "0px";
-        trail.style.left = "0px";
+
         function down(ev: MouseEvent | TouchEvent) {
+            ev.preventDefault();
             let leftBound = 0;
             let rightBound = parent.offsetWidth;
-            let handle_width: number = (ev.target as HTMLElement).offsetWidth;
+            let handle_width: number = handle.offsetWidth;
 
             function up(ev: MouseEvent | TouchEvent) {
                 document.removeEventListener("mouseup", up);
@@ -81,17 +96,10 @@ class Multirange_element extends HTMLElement {
                 if (pos > rightBound - handle_width) pos = rightBound - handle_width;
                 if (pos < leftBound) pos = leftBound;
                 handle.style.left = pos + "px";
-                trail.style.left = pos + half_handle + "px";
+                trail.style.left = half_handle + "px";
 
-                let nextElementSibling = trail.nextElementSibling;
-                if (nextElementSibling && nextElementSibling.tagName == "HANDLE") {
-                    trail.style.width = (nextElementSibling as HTMLElement).offsetLeft - pos + "px";
-                }
-
-                let previousElementSibling = handle.previousElementSibling;
-                if (previousElementSibling && previousElementSibling.tagName == "TRAIL") {
-                    (previousElementSibling as HTMLElement).style.width = handle.offsetLeft - (previousElementSibling as HTMLElement).offsetLeft + half_handle +"px";
-                }
+                parent.sort_handle();
+                parent.update_trails();
             }
             document.addEventListener("mouseup", up);
             document.addEventListener("mousemove", move);
@@ -99,7 +107,56 @@ class Multirange_element extends HTMLElement {
             document.addEventListener("touchmove", move);
         };
         this.shadowRoot?.appendChild(handle);
-        this.shadowRoot?.appendChild(trail);
+        handle.appendChild(trail);
+        handle.style.left = "0px";
+        trail.style.left = Math.floor(handle.offsetWidth / 2) + "px";
+    }
+
+    private swap_handle(a: HTMLElement, b: HTMLElement) {
+        console.log("SWAP: ", a , b);
+        a.parentNode?.insertBefore(a, b);
+    }
+
+    private sort_handle() {
+        if (! this.shadowRoot) return;
+        let children = this.shadowRoot.children;
+        let prev: HTMLElement | null = null;
+        for (let i = 0; i < children.length; i++) {
+            let curr = children[i] as HTMLElement;
+            if (curr.tagName == "HANDLE") {
+                if (prev) {
+                    if (curr.offsetLeft < prev.offsetLeft) {
+                        this.swap_handle(curr, prev);
+                    }
+                }
+                prev = curr;
+            }
+        }
+    }
+
+    private update_trails() {
+        let rightBound = this.offsetWidth;
+
+        if (! this.shadowRoot) return;
+        let children = this.shadowRoot.children;
+        let next_handle: HTMLElement | null = null;
+        for (let i = children.length - 1; i >= 0; i--) {
+            let curr_handle = children[i] as HTMLElement;
+            let half_handle = Math.floor(curr_handle.offsetWidth / 2);
+            if (curr_handle.tagName == "HANDLE") {
+                let trail = curr_handle.firstChild as HTMLElement;
+                if (!trail || trail.tagName != "TRAIL") {
+                    console.error("child is not a trail");
+                    continue;
+                }
+                if (next_handle) {
+                    trail.style.width = next_handle.offsetLeft - curr_handle.offsetLeft + half_handle + "px";
+                } else { // last handle
+                    trail.style.width = rightBound - (curr_handle.offsetLeft + half_handle) + "px";
+                }
+                next_handle = curr_handle;
+            }
+        }
     }
 }
 
