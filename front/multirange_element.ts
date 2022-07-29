@@ -6,10 +6,7 @@ type HEX = `#${string}`;
 type Color = RGB | RGBA | HEX;
 
 class Multirange_element extends HTMLElement {
-    private isGrabbed: boolean;
-    private grabbedOffset: number;
 
-    private handle: HTMLElement[];
     constructor() {
         super();
         const shadow = this.attachShadow({mode: 'open'});
@@ -37,13 +34,14 @@ class Multirange_element extends HTMLElement {
                 border-radius: 0 0 5px 5px;
                 z-index: 1;
                 margin: 0;
-                padding 0;
+                padding: 0;
             }
             trail {
                 display: inline-block;
                 position: absolute;
                 height: 20px;
                 background: green;
+                opacity: 40%;
                 z-index: 0;
             }
             trail:last-child {
@@ -54,8 +52,13 @@ class Multirange_element extends HTMLElement {
         const bar = document.createElement("div");
         bar.classList.add("bar");
         shadow.appendChild(bar);
+    }
+
+    connectedCallback() {
         this.addHandle("#ff22ff");
         this.addHandle("#00ffff");
+        this.sort_handle();
+        this.update_trails();
     }
 
     addHandle(color: Color) {
@@ -113,7 +116,6 @@ class Multirange_element extends HTMLElement {
     }
 
     private swap_handle(a: HTMLElement, b: HTMLElement) {
-        console.log("SWAP: ", a , b);
         a.parentNode?.insertBefore(a, b);
     }
 
@@ -121,17 +123,22 @@ class Multirange_element extends HTMLElement {
         if (! this.shadowRoot) return;
         let children = this.shadowRoot.children;
         let prev: HTMLElement | null = null;
-        for (let i = 0; i < children.length; i++) {
-            let curr = children[i] as HTMLElement;
-            if (curr.tagName == "HANDLE") {
-                if (prev) {
-                    if (curr.offsetLeft < prev.offsetLeft) {
-                        this.swap_handle(curr, prev);
+        let change: boolean;
+        do {
+            change = false;
+            for (let i = 0; i < children.length; i++) {
+                let curr = children[i] as HTMLElement;
+                if (curr.tagName == "HANDLE") {
+                    if (prev) {
+                        if (curr.offsetLeft < prev.offsetLeft) {
+                            this.swap_handle(curr, prev);
+                            change = true;
+                        }
                     }
+                    prev = curr;
                 }
-                prev = curr;
             }
-        }
+        } while (change != false);
     }
 
     private update_trails() {
