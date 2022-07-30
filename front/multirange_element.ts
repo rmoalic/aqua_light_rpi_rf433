@@ -6,9 +6,22 @@ type HEX = `#${string}`;
 type Color = RGB | RGBA | HEX;
 
 class Multirange_element extends HTMLElement {
+    static formAssociated = true;
+    value: FormData;
+    internals: ElementInternals;
+    form: HTMLFormElement;
+
+    min: number;
+    max: number;
+    step: number;
 
     constructor() {
         super();
+
+        this.min = 0;
+        this.max = 100;
+        this.step = 1;
+
         const shadow = this.attachShadow({mode: 'open'});
         const style = document.createElement("style");
         style.innerHTML = `
@@ -52,6 +65,8 @@ class Multirange_element extends HTMLElement {
         const bar = document.createElement("div");
         bar.classList.add("bar");
         shadow.appendChild(bar);
+
+        this.internals = this.attachInternals();
     }
 
     connectedCallback() {
@@ -59,6 +74,16 @@ class Multirange_element extends HTMLElement {
         this.addHandle("#00ffff");
         this.sort_handle();
         this.update_trails();
+    }
+
+    formAssociatedCallback(form) {
+        this.form = form;
+        console.log('form associated:', form);
+    }
+
+    setValue(value: FormData) {
+        this.value = value;
+        this.internals.setFormValue(value);
     }
 
     addHandle(color: Color) {
@@ -80,6 +105,7 @@ class Multirange_element extends HTMLElement {
             let handle_width: number = handle.offsetWidth;
 
             function up(ev: MouseEvent | TouchEvent) {
+                parent.print_value();
                 document.removeEventListener("mouseup", up);
                 document.removeEventListener("mousemove", move);
                 document.removeEventListener("touchend", up);
@@ -122,9 +148,9 @@ class Multirange_element extends HTMLElement {
     private sort_handle() {
         if (! this.shadowRoot) return;
         let children = this.shadowRoot.children;
-        let prev: HTMLElement | null = null;
         let change: boolean;
         do {
+            let prev: HTMLElement | null = null;
             change = false;
             for (let i = 0; i < children.length; i++) {
                 let curr = children[i] as HTMLElement;
@@ -163,6 +189,42 @@ class Multirange_element extends HTMLElement {
                 }
                 next_handle = curr_handle;
             }
+        }
+    }
+
+    private offset_to_value(offset: number) {
+        let offsetWidth = this.offsetWidth - 15; //TODO: replace 15 by handle size
+        return Math.round(((offset / offsetWidth) * (this.max - this.min)) + this.min);
+    }
+
+    private print_value() {
+        let ret_value = new FormData();
+
+        if (! this.shadowRoot) return;
+        let children = this.shadowRoot.children;
+        for (let i = 0; i < children.length; i++) {
+            let curr = children[i] as HTMLElement;
+            if (curr.tagName == "HANDLE") {
+                let v = this.offset_to_value(curr.offsetLeft);
+                ret_value.append(i.toString(), v.toString());
+                console.log(i, v);
+            }
+        }
+
+        this.setValue(ret_value);
+    }
+
+
+    static get observedAttributes() {
+        return ['min', 'max', 'step'];
+    }
+
+    attributeChangedCallback(property, oldValue, newValue) {
+        if (oldValue === newValue) return;
+        if (property == "min" || property == "max" || property == "step") {
+            this[property] = parseInt(newValue);
+        } else {
+            this[property] = newValue;
         }
     }
 }
