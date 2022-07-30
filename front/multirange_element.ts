@@ -7,9 +7,9 @@ type Color = RGB | RGBA | HEX;
 
 class Multirange_element extends HTMLElement {
     static formAssociated = true;
-    value: FormData;
+    value: FormData | null;
     internals: ElementInternals;
-    form: HTMLFormElement;
+    form: HTMLFormElement | null;
 
     min: number;
     max: number;
@@ -21,6 +21,8 @@ class Multirange_element extends HTMLElement {
         this.min = 0;
         this.max = 100;
         this.step = 1;
+        this.value = null;
+        this.form = null;
 
         const shadow = this.attachShadow({mode: 'open'});
         const style = document.createElement("style");
@@ -76,7 +78,7 @@ class Multirange_element extends HTMLElement {
         this.update_trails();
     }
 
-    formAssociatedCallback(form) {
+    formAssociatedCallback(form: HTMLFormElement) {
         this.form = form;
         console.log('form associated:', form);
     }
@@ -219,12 +221,11 @@ class Multirange_element extends HTMLElement {
         return ['min', 'max', 'step'];
     }
 
-    attributeChangedCallback(property, oldValue, newValue) {
+    attributeChangedCallback(property: string, oldValue: string | null, newValue: string | null) {
         if (oldValue === newValue) return;
         if (property == "min" || property == "max" || property == "step") {
+            if (newValue == null) return;
             this[property] = parseInt(newValue);
-        } else {
-            this[property] = newValue;
         }
     }
 }
