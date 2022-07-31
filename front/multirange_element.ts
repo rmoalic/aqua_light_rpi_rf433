@@ -72,15 +72,126 @@ class Multirange_element extends HTMLElement {
     }
 
     connectedCallback() {
-        this.addHandle("#ff22ff");
-        this.addHandle("#00ffff");
+        let parent = this;
+        const mutations = function(mutation: MutationRecord[]) {
+            for (let mut of mutation) {
+                console.log(mut);
+                if (mut.type == "childList") {
+                    if (mut.addedNodes.length > 0) {
+                        parent.mutations_added_node(mut);
+                    } else if (mut.removedNodes.length > 0) {
+                        parent.mutations_removed_node(mut);
+                    }
+                } else if (mut.type == "attributes") {
+                    parent.mutation_update_attribute(mut);
+                }
+            }
+            parent.sort_handle();
+            parent.update_trails();
+        }
+
+        let mutation_observer = new MutationObserver(mutations);
+        mutation_observer.observe(this, { 
+            childList: true,
+            attributes: true,
+            attributeOldValue: true,
+            attributeFilter: ["name", "value", "color"],
+            subtree: true
+        });
+        this.print_value();
         this.sort_handle();
         this.update_trails();
     }
 
+
+    mutations_added_node(mut: MutationRecord) {
+        if (mut.addedNodes.length == 0) return;
+        if (mut.addedNodes.length > 1) {
+            console.error(mut, "added lenght > 1");
+            return;
+        }
+        if (mut.addedNodes[0].nodeType != 1) return;
+
+        let node = mut.addedNodes[0] as HTMLElement;
+        if (node.tagName == "RM-HANDLE") {
+            let name = node.getAttribute("name");
+            let value_text = node.getAttribute("value");
+            let value: number = 0;
+            let color = node.getAttribute("color") as Color | null;
+
+            if (name == null) {
+                console.error(node, " must have a (unique) name attribute.");
+                return;
+            }
+
+            if (value_text != null) {
+                value = parseInt(value_text);
+            }
+
+            if (color == null) {
+                color = "#f00";
+            }
+
+            this.addHandle(name, color);
+        }
+    }
+
+    mutations_removed_node(mut: MutationRecord) {
+        if (mut.removedNodes.length == 0) return;
+        if (mut.removedNodes.length > 1) {
+            console.error(mut, " removed lenght > 1");
+            return;
+        }
+        if (mut.removedNodes[0].nodeType != 1) return;
+
+        let node = mut.removedNodes[0] as HTMLElement;
+        if (node.tagName == "RM-HANDLE") {
+            let name = node.getAttribute("name");
+            if (name == null) return;
+
+            this.removeHandle(name);
+        }
+
+    }
+
+    mutation_update_attribute(mut: MutationRecord) {
+        if (mut.target == this) return;
+        let node = mut.target as HTMLElement;
+        let node_name = node.getAttribute("name");
+        if (node_name == null) throw Error("node name cannot be null");
+        if (node.tagName == "RM-HANDLE") {
+            switch (mut.attributeName) {
+                case "color": {
+                    let inner_node = this.shadowRoot?.getElementById(node_name);
+                    if (inner_node == null) return;
+                    let new_color = node.getAttribute("color") as Color | null;
+                    if (new_color == null) return;
+                    this.handle_change_color(inner_node, new_color);
+                } break;
+                case "name": {
+                    let old = mut.oldValue;
+                    if (old == null) return;
+                    let n = node.getAttribute("name");
+                    if (n == null) return;
+
+                    this.renameHandle(old, n);
+                } break;
+                case "value": {
+                    let old = mut.oldValue;
+                    if (old == null) return;
+                    let n = node.getAttribute("name");
+                    if (n == null) return;
+                } break;
+                default: {
+                    throw Error("unreachable");
+                }
+            }
+
+        }
+    }
+
     formAssociatedCallback(form: HTMLFormElement) {
         this.form = form;
-        console.log('form associated:', form);
     }
 
     setValue(value: FormData) {
@@ -88,15 +199,48 @@ class Multirange_element extends HTMLElement {
         this.internals.setFormValue(value);
     }
 
-    addHandle(color: Color) {
+    renameHandle(id: string, new_id: string) {
+        if (new_id == "") throw Error("id cannot be empty");
+        if (this.shadowRoot?.getElementById(new_id) != null) {
+            throw Error("id "+ new_id +" already exist");
+        }
+
+        let node = this.shadowRoot?.getElementById(id);
+        if (node == null) {
+            console.error("node "+id+" does not exist");
+            return;
+        }
+        node.id = new_id;
+        this.print_value();
+    }
+
+    removeHandle(id: string) {
+        let node = this.shadowRoot?.getElementById(id);
+        if (node == null) return;
+
+        node.remove();
+        this.update_trails();
+        this.print_value();
+    }
+
+    handle_change_color(handle: HTMLElement, color: Color) {
+        let trail = handle.children[0] as HTMLElement;
+        if (trail.tagName != "TRAIL") throw Error("first child is not trail");
+        handle.style.background = color;
+        trail.style.background = color;
+    }
+
+    addHandle(id: string, color: Color): HTMLElement | null {
+        if (this.shadowRoot?.getElementById(id) != null) {
+            console.error(this, "contains multiples ", id, "handles");
+            return null;
+        }
         let handle = document.createElement("handle");
+        handle.id = id;
         handle.onmousedown = down;
         handle.ontouchstart = down;
         
         let trail = document.createElement("trail");
-
-        handle.style.background = color;
-        trail.style.background = color;
 
         let parent = this;
 
@@ -141,6 +285,8 @@ class Multirange_element extends HTMLElement {
         handle.appendChild(trail);
         handle.style.left = "0px";
         trail.style.left = Math.floor(handle.offsetWidth / 2) + "px";
+        this.handle_change_color(handle, color);
+        return handle;
     }
 
     private swap_handle(a: HTMLElement, b: HTMLElement) {
@@ -208,8 +354,8 @@ class Multirange_element extends HTMLElement {
             let curr = children[i] as HTMLElement;
             if (curr.tagName == "HANDLE") {
                 let v = this.offset_to_value(curr.offsetLeft);
-                ret_value.append(i.toString(), v.toString());
-                console.log(i, v);
+                ret_value.append(curr.id, v.toString());
+                console.log(curr.id, v);
             }
         }
 
