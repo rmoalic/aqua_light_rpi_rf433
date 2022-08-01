@@ -7,7 +7,7 @@ type Color = RGB | RGBA | HEX;
 
 class Multirange_element extends HTMLElement {
     static formAssociated = true;
-    value: FormData | null;
+    value: FormData;
     internals: ElementInternals;
     form: HTMLFormElement | null;
 
@@ -21,7 +21,7 @@ class Multirange_element extends HTMLElement {
         this.min = 0;
         this.max = 100;
         this.step = 1;
-        this.value = null;
+        this.value = new FormData();
         this.form = null;
 
         const shadow = this.attachShadow({mode: 'open'});
@@ -43,7 +43,7 @@ class Multirange_element extends HTMLElement {
                 display: inline-block;
                 position: absolute;
                 top: auto;
-                width: 15px;
+                width: 10px;
                 height: 25px;
                 background: red;
                 border-radius: 0 0 5px 5px;
@@ -132,7 +132,10 @@ class Multirange_element extends HTMLElement {
                 color = "#f00";
             }
 
-            this.addHandle(name, color);
+            let handle = this.addHandle(name, color);
+            if (handle == null) return;
+            this.move_handle(handle, this.value_to_offset(value));
+            this.print_value();
         }
     }
 
@@ -179,8 +182,12 @@ class Multirange_element extends HTMLElement {
                 case "value": {
                     let old = mut.oldValue;
                     if (old == null) return;
-                    let n = node.getAttribute("name");
+                    let n = node.getAttribute("value");
                     if (n == null) return;
+                    let inner_node = this.shadowRoot?.getElementById(node_name);
+                    if (inner_node == null) return;
+                    
+                    this.move_handle(inner_node, this.value_to_offset(parseFloat(n)))
                 } break;
                 default: {
                     throw Error("unreachable");
@@ -246,9 +253,6 @@ class Multirange_element extends HTMLElement {
 
         function down(ev: MouseEvent | TouchEvent) {
             ev.preventDefault();
-            let leftBound = 0;
-            let rightBound = parent.offsetWidth;
-            let handle_width: number = handle.offsetWidth;
 
             function up(ev: MouseEvent | TouchEvent) {
                 parent.print_value();
@@ -266,15 +270,8 @@ class Multirange_element extends HTMLElement {
                 } else {
                     x = (ev as TouchEvent).touches[0].clientX;
                 }
-                let half_handle = Math.floor(handle_width / 2);
-                let pos = (x - half_handle);
-                if (pos > rightBound - handle_width) pos = rightBound - handle_width;
-                if (pos < leftBound) pos = leftBound;
-                handle.style.left = pos + "px";
-                trail.style.left = half_handle + "px";
 
-                parent.sort_handle();
-                parent.update_trails();
+                parent.move_handle(handle, x);
             }
             document.addEventListener("mouseup", up);
             document.addEventListener("mousemove", move);
@@ -287,6 +284,24 @@ class Multirange_element extends HTMLElement {
         trail.style.left = Math.floor(handle.offsetWidth / 2) + "px";
         this.handle_change_color(handle, color);
         return handle;
+    }
+
+    private move_handle(handle: HTMLElement, new_pos: number) {
+        let leftBound = 0;
+        let rightBound = this.offsetWidth;
+        let handle_width: number = handle.offsetWidth;
+        let trail = handle.firstElementChild as HTMLElement | null;
+        if (trail == null) throw Error("handle first element is not a trail");
+
+        let half_handle = Math.floor(handle_width / 2); //TODO: fix offset
+        let pos = (new_pos - half_handle);
+        if (pos > rightBound - handle_width) pos = rightBound - handle_width;
+        if (pos < leftBound) pos = leftBound;
+        handle.style.left = pos + "px";
+        trail.style.left = half_handle + "px";
+
+        this.sort_handle();
+        this.update_trails();
     }
 
     private swap_handle(a: HTMLElement, b: HTMLElement) {
@@ -340,9 +355,23 @@ class Multirange_element extends HTMLElement {
         }
     }
 
-    private offset_to_value(offset: number) {
-        let offsetWidth = this.offsetWidth - 15; //TODO: replace 15 by handle size
-        return Math.round(((offset / offsetWidth) * (this.max - this.min)) + this.min);
+    private offset_to_value(offset: number): number {
+        let offsetWidth = this.offsetWidth - 10; //TODO: replace 15 by handle size
+        return ((offset / offsetWidth) * (this.max - this.min)) + this.min;
+    }
+
+    private value_to_offset(value: number): number {
+        let offsetWidth = this.offsetWidth - 10; //TODO: replace 15 by handle size
+        return (((value - this.min) / (this.max - this.min)) * offsetWidth);
+    }
+
+    private get_not_shadow_node_by_name(name: string): HTMLElement | null {
+        for (let node of this.children) {
+            if (node.nodeType == 1 && node.tagName == "RM-HANDLE" && node.getAttribute("name") == name) {
+                return node as HTMLElement;
+            }
+        }
+        return null;
     }
 
     private print_value() {
@@ -356,6 +385,11 @@ class Multirange_element extends HTMLElement {
                 let v = this.offset_to_value(curr.offsetLeft);
                 ret_value.append(curr.id, v.toString());
                 console.log(curr.id, v);
+
+                let external_node = this.get_not_shadow_node_by_name(curr.id);
+                if (external_node != null) {
+                    external_node.setAttribute("value", v.toString());
+                }
             }
         }
 
