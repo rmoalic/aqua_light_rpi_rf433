@@ -243,6 +243,7 @@ class Multirange_element extends HTMLElement {
             return null;
         }
         let handle = document.createElement("handle");
+
         handle.id = id;
         handle.onmousedown = down;
         handle.ontouchstart = down;
@@ -253,6 +254,9 @@ class Multirange_element extends HTMLElement {
 
         function down(ev: MouseEvent | TouchEvent) {
             ev.preventDefault();
+
+            let handle_width: number = handle.offsetWidth;
+            let half_handle = Math.floor(handle_width / 2);
 
             function up(ev: MouseEvent | TouchEvent) {
                 parent.print_value();
@@ -271,7 +275,7 @@ class Multirange_element extends HTMLElement {
                     x = (ev as TouchEvent).touches[0].clientX;
                 }
 
-                parent.move_handle(handle, x);
+                parent.move_handle(handle, x - parent.offsetLeft - half_handle);
             }
             document.addEventListener("mouseup", up);
             document.addEventListener("mousemove", move);
@@ -293,8 +297,8 @@ class Multirange_element extends HTMLElement {
         let trail = handle.firstElementChild as HTMLElement | null;
         if (trail == null) throw Error("handle first element is not a trail");
 
-        let half_handle = Math.floor(handle_width / 2); //TODO: fix offset
-        let pos = (new_pos - half_handle);
+        let half_handle = Math.floor(handle_width / 2);
+        let pos = new_pos;
         if (pos > rightBound - handle_width) pos = rightBound - handle_width;
         if (pos < leftBound) pos = leftBound;
         handle.style.left = pos + "px";
