@@ -43,6 +43,7 @@ class Multirange_element extends HTMLElement {
                 display: inline-block;
                 position: absolute;
                 top: auto;
+                bottom: -1px;
                 width: 10px;
                 height: 25px;
                 background: red;
