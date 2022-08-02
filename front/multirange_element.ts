@@ -99,7 +99,7 @@ class Multirange_element extends HTMLElement {
             attributeFilter: ["name", "value", "color"],
             subtree: true
         });
-        this.print_value();
+        this.update_value();
         this.sort_handle();
         this.update_trails();
     }
@@ -136,7 +136,7 @@ class Multirange_element extends HTMLElement {
             let handle = this.addHandle(name, color);
             if (handle == null) return;
             this.move_handle(handle, this.value_to_offset(value));
-            this.print_value();
+            this.update_value();
         }
     }
 
@@ -219,7 +219,7 @@ class Multirange_element extends HTMLElement {
             return;
         }
         node.id = new_id;
-        this.print_value();
+        this.update_value();
     }
 
     removeHandle(id: string) {
@@ -228,7 +228,7 @@ class Multirange_element extends HTMLElement {
 
         node.remove();
         this.update_trails();
-        this.print_value();
+        this.update_value();
     }
 
     handle_change_color(handle: HTMLElement, color: Color) {
@@ -260,7 +260,7 @@ class Multirange_element extends HTMLElement {
             let half_handle = Math.floor(handle_width / 2);
 
             function up(ev: MouseEvent | TouchEvent) {
-                parent.print_value();
+                parent.update_value();
                 document.removeEventListener("mouseup", up);
                 document.removeEventListener("mousemove", move);
                 document.removeEventListener("touchend", up);
@@ -366,7 +366,7 @@ class Multirange_element extends HTMLElement {
     }
 
     private value_to_offset(value: number): number {
-        let offsetWidth = this.offsetWidth - 10; //TODO: replace 15 by handle size
+        let offsetWidth = this.offsetWidth - 10; //TODO: replace 10 by handle size
         return (((value - this.min) / (this.max - this.min)) * offsetWidth);
     }
 
@@ -379,7 +379,7 @@ class Multirange_element extends HTMLElement {
         return null;
     }
 
-    private print_value() {
+    private update_value() {
         let ret_value = new FormData();
 
         if (! this.shadowRoot) return;
@@ -393,7 +393,10 @@ class Multirange_element extends HTMLElement {
 
                 let external_node = this.get_not_shadow_node_by_name(curr.id);
                 if (external_node != null) {
-                    external_node.setAttribute("value", v.toString());
+                    let new_value = v.toString();
+                    if (external_node.getAttribute("value") != new_value) {
+                        external_node.setAttribute("value", new_value);
+                    }
                 }
             }
         }
