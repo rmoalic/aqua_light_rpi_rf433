@@ -101,7 +101,7 @@ class Multirange_element extends HTMLElement {
             childList: true,
             attributes: true,
             attributeOldValue: true,
-            attributeFilter: ["name", "value", "color"],
+            attributeFilter: ["name", "value", "color", "group"],
             subtree: true
         });
         this.update_value();
@@ -136,6 +136,7 @@ class Multirange_element extends HTMLElement {
             let value_text = node.getAttribute("value");
             let value: number = 0;
             let color = node.getAttribute("color") as Color | null;
+            let group = node.getAttribute("group");
 
             if (name == null) {
                 console.error(node, " must have a (unique) name attribute.");
@@ -150,7 +151,7 @@ class Multirange_element extends HTMLElement {
                 color = "#f00";
             }
 
-            let handle = this.addHandle(name, color);
+            let handle = this.addHandle(name, color, group);
             if (handle == null) return;
             this.move_handle(handle, this.value_to_offset(value));
             this.update_value();
@@ -206,6 +207,15 @@ class Multirange_element extends HTMLElement {
                     if (inner_node == null) return;
                     
                     this.move_handle(inner_node, this.value_to_offset(parseFloat(n)))
+                } break;
+                case "group": {
+                    let inner_node = this.shadowRoot?.getElementById(node_name);
+                    if (inner_node == null) return;
+                    let new_group = node.getAttribute("group");
+                    if (new_group == null) return;
+
+                    inner_node.setAttribute("group", new_group);
+                    this.update_value();
                 } break;
                 default: {
                     throw Error("unreachable");
@@ -266,7 +276,7 @@ class Multirange_element extends HTMLElement {
         trail.style.background = color;
     }
 
-    private addHandle(id: string, color: Color): HTMLElement | null {
+    private addHandle(id: string, color: Color, group: string | null): HTMLElement | null {
         if (this.shadowRoot?.getElementById(id) != null) {
             console.error(this, "contains multiples ", id, "handles");
             return null;
@@ -276,6 +286,10 @@ class Multirange_element extends HTMLElement {
         handle.id = id;
         handle.onmousedown = down;
         handle.ontouchstart = down;
+
+        if (group != null) {
+            handle.setAttribute("group", group);
+        }
         
         let trail = document.createElement("trail");
 
@@ -417,8 +431,14 @@ class Multirange_element extends HTMLElement {
             let curr = children[i] as HTMLElement;
             if (curr.tagName == "HANDLE") {
                 let v = this.offset_to_value(curr.offsetLeft);
-                ret_value.append(curr.id, v.toString());
-                console.log(curr.id, v);
+                let id;
+                if (curr.hasAttribute("group")) {
+                    id = curr.getAttribute("group")+"[]";
+                } else {
+                    id = curr.id;
+                }
+                ret_value.append(id, v.toString());
+                console.log(id, v);
 
                 let external_node = this.get_not_shadow_node_by_name(curr.id);
                 if (external_node != null) {
