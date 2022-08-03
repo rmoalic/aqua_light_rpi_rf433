@@ -8,16 +8,83 @@
 
     <body>
         <form action="http://localhost:8080/action_page.php" method="GET">
-        <div style="width: 200px">
+        <div style="width: 50%">
             <span>Test</span>
-            <rm-multirange name="tes">
+            <rm-multirange id="color_range" min="0" max="1440" step="1">
                 <rm-handle name="eh1" value="50" color="#00f4f2"></rm-handle>
                 <rm-handle name="eh2" value="20" color="#0f25f4"></rm-handle>
             </rm-multirange>
-        
-            <span>E</span>
+            <div>
+                <select id="color_select">
+                    <option value="off">off</option>
+                    <option value="8am">8:00</option>
+                    <option value="12am">12:00</option>
+                    <option value="16pm">16:00</option>
+                    <option value="W">Blanc</option>
+                    <option value="R">Rouge</option>
+                    <option value="G">Vert</option>
+                    <option value="B">Bleu</option>
+                </select>
+                <button type="button" onclick="add_to_multirange('color_select', 'color_range')">ajouter</button>
+                <button type="button" onClick="remove_from_mutirange('color_range')">remove</button>
+            </div>
         </div>
         <input type="submit" value="Submit">
         </form>
+
+        <div>
+
+        <script>
+            var MULTIRANGE_NAME_ID = 1000;
+            function add_to_multirange(id_select, id_multirange) {
+                let select = document.getElementById(id_select);
+                let multirange = document.getElementById(id_multirange);
+                let selected_option = select.options[select.selectedIndex];
+
+                let rm_handle = document.createElement("rm-handle");
+                rm_handle.setAttribute("name", "gen"+MULTIRANGE_NAME_ID.toString());
+                MULTIRANGE_NAME_ID++;
+
+                rm_handle.setAttribute("group", selected_option.value);
+                rm_handle.setAttribute("value", "0");
+
+                switch (selected_option.value) {
+                    case "off": {
+                        rm_handle.setAttribute("color", "gray");
+                    } break;
+                    case "8am": {
+                        rm_handle.setAttribute("color", "#fff");
+                    } break;
+                    case "12am": {
+                        rm_handle.setAttribute("color", "#fff");
+                    } break;
+                    case "16pm": {
+                        rm_handle.setAttribute("color", "#fff");
+                    } break;
+                    case "W": {
+                        rm_handle.setAttribute("color", "white");
+                    } break;
+                    case "R": {
+                        rm_handle.setAttribute("color", "red");
+                    } break;
+                    case "G": {
+                        rm_handle.setAttribute("color", "green");
+                    } break;
+                    case "B": {
+                        rm_handle.setAttribute("color", "blue");
+                    } break;
+                }
+
+                multirange.appendChild(rm_handle);
+            }
+
+            function remove_from_mutirange(id_multirange) {
+                let multirange = document.getElementById(id_multirange);
+                let selected = multirange.get_selected_outter();
+                if (selected == null) return;
+                selected.remove();
+            }
+
+        </script>
     </body>
 </html>

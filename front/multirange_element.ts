@@ -10,6 +10,7 @@ class Multirange_element extends HTMLElement {
     value: FormData;
     internals: ElementInternals;
     form: HTMLFormElement | null;
+    last_selected: HTMLElement | null;
 
     min: number;
     max: number;
@@ -23,6 +24,7 @@ class Multirange_element extends HTMLElement {
         this.step = 1;
         this.value = new FormData();
         this.form = null;
+        this.last_selected = null;
 
         const shadow = this.attachShadow({mode: 'open'});
         const style = document.createElement("style");
@@ -51,6 +53,9 @@ class Multirange_element extends HTMLElement {
                 z-index: 1;
                 margin: 0;
                 padding: 0;
+            }
+            handle.selected {
+                outline: 1px solid black;
             }
             trail {
                 display: inline-block;
@@ -104,8 +109,20 @@ class Multirange_element extends HTMLElement {
         this.update_trails();
     }
 
+    get_selected_outter(): HTMLElement | null {
+        if (this.last_selected == null) return null;
+        let selected_name = this.last_selected.id;
+        if (selected_name == null) return null;
+        let children = this.children;
+        for (let child of children) {
+            if (child.nodeType == 1 && child.getAttribute("name") == selected_name) {
+                return child as HTMLElement;
+            }
+        }
+        return null;
+    }
 
-    mutations_added_node(mut: MutationRecord) {
+    private mutations_added_node(mut: MutationRecord) {
         if (mut.addedNodes.length == 0) return;
         if (mut.addedNodes.length > 1) {
             console.error(mut, "added lenght > 1");
@@ -140,7 +157,7 @@ class Multirange_element extends HTMLElement {
         }
     }
 
-    mutations_removed_node(mut: MutationRecord) {
+    private mutations_removed_node(mut: MutationRecord) {
         if (mut.removedNodes.length == 0) return;
         if (mut.removedNodes.length > 1) {
             console.error(mut, " removed lenght > 1");
@@ -158,7 +175,7 @@ class Multirange_element extends HTMLElement {
 
     }
 
-    mutation_update_attribute(mut: MutationRecord) {
+    private mutation_update_attribute(mut: MutationRecord) {
         if (mut.target == this) return;
         let node = mut.target as HTMLElement;
         let node_name = node.getAttribute("name");
@@ -202,12 +219,12 @@ class Multirange_element extends HTMLElement {
         this.form = form;
     }
 
-    setValue(value: FormData) {
+    private setValue(value: FormData) {
         this.value = value;
         this.internals.setFormValue(value);
     }
 
-    renameHandle(id: string, new_id: string) {
+    private renameHandle(id: string, new_id: string) {
         if (new_id == "") throw Error("id cannot be empty");
         if (this.shadowRoot?.getElementById(new_id) != null) {
             throw Error("id "+ new_id +" already exist");
@@ -222,7 +239,18 @@ class Multirange_element extends HTMLElement {
         this.update_value();
     }
 
-    removeHandle(id: string) {
+    private selectHandle(handle: HTMLElement) {
+        let children = this.shadowRoot?.children;
+        if (children != null) {
+            for (let child of children) {
+                child.classList.remove("selected");
+            }
+            this.last_selected = handle;
+            handle.classList.add("selected");
+        }
+    }
+
+    private removeHandle(id: string) {
         let node = this.shadowRoot?.getElementById(id);
         if (node == null) return;
 
@@ -231,14 +259,14 @@ class Multirange_element extends HTMLElement {
         this.update_value();
     }
 
-    handle_change_color(handle: HTMLElement, color: Color) {
+    private handle_change_color(handle: HTMLElement, color: Color) {
         let trail = handle.children[0] as HTMLElement;
         if (trail.tagName != "TRAIL") throw Error("first child is not trail");
         handle.style.background = color;
         trail.style.background = color;
     }
 
-    addHandle(id: string, color: Color): HTMLElement | null {
+    private addHandle(id: string, color: Color): HTMLElement | null {
         if (this.shadowRoot?.getElementById(id) != null) {
             console.error(this, "contains multiples ", id, "handles");
             return null;
@@ -256,6 +284,7 @@ class Multirange_element extends HTMLElement {
         function down(ev: MouseEvent | TouchEvent) {
             ev.preventDefault();
 
+            parent.selectHandle(handle);
             let handle_width: number = handle.offsetWidth;
             let half_handle = Math.floor(handle_width / 2);
 
