@@ -39,14 +39,15 @@ class RPI_rf433:
         
         assert code_lenght <= len(code_bits)
 
-        transmit_once_time = code_lenght * (short_delay + long_delay)
-        transmit_time = transmit_once_time * self.REPLAY + (reset_delay * self.REPLAY)
+        transmit_once_time = code_lenght * (short_delay + long_delay) + reset_delay
+        transmit_time = transmit_once_time * self.REPLAY
         print(f"Transmitting {code_lenght}bits in {transmit_time}ms ({self.REPLAY} * {transmit_once_time}ms)")
         print(f">> ({code_lenght}) {code.hex(' ')}")
 
         code_bits_trimmed = code_bits[:code_lenght]
 
-        for _ in range(self.REPLAY):
+        for i in range(self.REPLAY):
+            transmit_start = time.time()
             for bit in code_bits_trimmed:
                 if bit:
                     GPIO.output(self.gpio_tx_pin, 1)
@@ -59,3 +60,7 @@ class RPI_rf433:
                     GPIO.output(self.gpio_tx_pin, 0)
                     sleep(long_delay)
             sleep(reset_delay)
+            transmit_end = time.time()
+            transmit_realtime = (transmit_end - transmit_start) * 1000
+            transmit_time_diff = transmit_realtime - transmit_once_time
+            print(f"Attempt {i}: took {transmit_realtime:.{3}f} ms ({transmit_time_diff:+.{3}f} ms)")
