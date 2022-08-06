@@ -1,5 +1,6 @@
 import abc
 import enum
+from typing import Tuple
 
 class Rf_protocol(enum.Enum):
     PWM_FP = 0
@@ -9,6 +10,9 @@ class Remote(abc.ABC):
     @staticmethod
     @abc.abstractmethod
     def name() -> str:
+        pass
+
+    def fancy_name() -> str:
         pass
 
     @staticmethod
@@ -34,6 +38,5 @@ class Remote_pwm_fp(Remote):
         pass
 
     @staticmethod
-    @abc.abstractmethod
-    def rf_code(key) -> bytearray:
+    def rf_code(key) -> Tuple[bytearray, int]:
         pass

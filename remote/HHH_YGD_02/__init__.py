@@ -1,4 +1,4 @@
-
+from typing import Tuple
 import enum
 from ..remote import Remote_pwm_fp, Rf_protocol
 
@@ -28,10 +28,12 @@ class Remote_HHH_YGD_02(Remote_pwm_fp):
     @staticmethod
     def name() -> str:
         return "HHH-YGD-02"
-    
-    @staticmethod
-    def rf_code(key: Keys_HHH_YGD_02) -> bytearray:
-        return bytearray([0xff, 0x00, key.value, 0x80])
+
+    def fancy_name(self) -> str:
+        return self.name()
+
+    def rf_code(self, key: Keys_HHH_YGD_02) -> Tuple[bytearray, int]:
+        return (bytearray([0xff, 0x00, key.value, 0x80]), 25)
     
     @staticmethod
     def rf_protocol_type():

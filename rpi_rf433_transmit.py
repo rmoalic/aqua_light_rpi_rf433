@@ -31,18 +31,23 @@ class RPI_rf433:
         if self.INSTANCES == 0:
             GPIO.cleanup()
 
-    def transmit_pwm_fp(self, code: bytearray, short_delay: int, long_delay: int, reset_delay: int):
+    def transmit_pwm_fp(self, code: bytearray, code_lenght: int, short_delay: int, long_delay: int, reset_delay: int):
         GPIO.setmode(GPIO.BCM)
         code_bits = []
         for byte in code:
             code_bits.extend(list(byte_to_bit(byte)))
         
-        transmit_once_time = len(code_bits) * (short_delay + long_delay)
+        assert code_lenght <= len(code_bits)
+
+        transmit_once_time = code_lenght * (short_delay + long_delay)
         transmit_time = transmit_once_time * self.REPLAY + (reset_delay * self.REPLAY)
-        print(f"Transmitting {len(code_bits)}bits in {transmit_time}ms ({self.REPLAY} * {transmit_once_time}ms)")
+        print(f"Transmitting {code_lenght}bits in {transmit_time}ms ({self.REPLAY} * {transmit_once_time}ms)")
+        print(f">> ({code_lenght}) {code.hex(' ')}")
+
+        code_bits_trimmed = code_bits[:code_lenght]
 
         for _ in range(self.REPLAY):
-            for bit in code_bits: # TODO: Skip last extra bits
+            for bit in code_bits_trimmed:
                 if bit:
                     GPIO.output(self.gpio_tx_pin, 1)
                     sleep(short_delay)
