@@ -56,9 +56,9 @@ class RPI_rf433:
                     sleep(long_delay)
                 else:
                     GPIO.output(self.gpio_tx_pin, 1)
-                    sleep(short_delay)
-                    GPIO.output(self.gpio_tx_pin, 0)
                     sleep(long_delay)
+                    GPIO.output(self.gpio_tx_pin, 0)
+                    sleep(short_delay)
             sleep(reset_delay)
             transmit_end = time.time()
             transmit_realtime = (transmit_end - transmit_start) * 1000
